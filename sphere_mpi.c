@@ -198,31 +198,42 @@ int main(int argc, char *argv[])
     {
       for(k = 1; k <= nx; k++)
       {
-        if((Uold[i-1][j][k] != 0 && Uold[i+1][j][k] != 0) && (Uold[i][j-1][k] != 0 && Uold[i][j+1][k] != 0) && (Uold[i][j][k-1] != 0 && Uold[i][j][k+1]))
-        {
-          tensor_x[i][j][k] = 1;
-          tensor_y[i][j][k] = 1;
-          tensor_z[i][j][k] = 1;
-        }
+        inside = (((i-center_x)*(i-center_x)) + ((j-center_y)*(j-center_y)) + ((k-center_z)*(k-center_z)));
+
+        //if(inside <= r*r)
+        //{
+          if((Uold[i-1][j][k] != 0 && Uold[i+1][j][k] != 0) && (Uold[i][j-1][k] != 0 && Uold[i][j+1][k] != 0) && (Uold[i][j][k-1] != 0 && Uold[i][j][k+1] != 0))
+          {
+            tensor_x[i][j][k] = 23;
+            tensor_y[i][j][k] = 23;
+            tensor_z[i][j][k] = 23;
+          }
+          else
+          {
+            tensor_x[i][j][k] = 0.0;
+            tensor_y[i][j][k] = 0.0;
+            tensor_z[i][j][k] = 0.0;
+          }
+        /*}
         else
         {
           tensor_x[i][j][k] = 0.0;
           tensor_y[i][j][k] = 0.0;
           tensor_z[i][j][k] = 0.0;
-        }
+        }*/
       }
     }
   }
 
-  if(rank == 0)
+  if(rank == 6)
   {
-    for(i = 0; i <= nz; i++)
+    for(i = 1; i <= nz; i++)
     {
-      for(j = 0; j <= ny; j++)
+      for(j = 1; j <= ny; j++)
       {
-        for(k = 0; k <= nx; k++)
+        for(k = 1; k <= nx; k++)
         {
-          printf("%0.1f \t", Uold[i][j][k]);
+          printf("%0.1f \t", tensor_x[i][j][k]);
         }
         printf("\n");
       }
