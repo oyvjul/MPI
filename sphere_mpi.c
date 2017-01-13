@@ -1,10 +1,110 @@
 #include <stdio.h>
 #include <mpi.h>
 #include "common.h"
+#include "math.h"
 
 int x = 7;
 int y = 7;
 int z = 7;
+
+void calculatel2Norm(double*** E, int nx, int ny, int nz, int r, int iters, int rank)
+{
+  int i, j, k;
+
+  float mx = -1;
+  float l2norm = 0;
+  float l2norm_all = 0;
+
+  for (i = 1; i <= nz; i++)
+  {
+      for (j = 1; j <= ny; j++)
+      {
+          for (k = 1; k <= nx; k++)
+          {
+            l2norm += E[i][j][k]*E[i][j][k];
+
+            if (E[i][j][k] > mx)
+            mx = E[i][j][k];
+            }
+        }
+  }
+  MPI_Allreduce(&l2norm, &l2norm_all, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+  //l2norm_all /= (float) ((nx)*(ny)*(nz));
+  l2norm_all = sqrt(l2norm_all);
+
+  if(rank == 0)
+  {
+    printf("radius: %d, iteration %d \n", r, iters);
+    printf("max: %20.12e, l2norm: %20.12e \n", mx, l2norm_all);
+  }
+}
+
+void show_grid_left_right1(double ***E, int x, int y, int z)
+{
+  int i, j, k;
+
+  for(i = 0; i <= z+1; i++)
+  {
+    for(j = 0; j <= y+1; j++)
+    {
+      for(k = 0; k <= x+1; k+=x+1)
+      {
+        printf("%0.1f\t", E[i][j][k]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+  printf("\n");
+}
+
+void show_grid_left_right(double ***E, int x, int y, int z)
+{
+  int i, j, k;
+
+  for(i = 0; i <= z+1; i++)
+  {
+    for(j = 0; j <= y+1; j++)
+    {
+      for(k = 0; k <= x+1; k+=x+1)
+      {
+        E[i][j][k] = 0;
+      }
+    }
+  }
+}
+
+void show_grid_up_down(double ***E, int x, int y, int z)
+{
+  int i, j, k;
+
+  for(i = 0; i <= z+1; i++)
+  {
+    for(j = 0; j <= y+1; j+=y+1)
+    {
+      for(k = 0; k <= x+1; k++)
+      {
+        E[i][j][k] = 0;
+      }
+    }
+  }
+}
+
+void show_grid_zup_zdown(double ***E, int x, int y, int z)
+{
+  int i, j, k;
+
+  for(i = 0; i <= z+1; i+=z+1)
+  {
+    for(j = 0; j <= y+1; j++)
+    {
+      for(k = 0; k <= x+1; k++)
+      {
+        E[i][j][k] = 0;
+      }
+    }
+  }
+}
 
 void decompose(int n, int dim, int coord, int* start, int* end)
 {
@@ -36,20 +136,32 @@ int main(int argc, char *argv[])
   //double ***Unew, ***Uold, ***test_arr;
 
   MPI_Comm comm3d;
+  MPI_Request req[12];
 
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  int r = 5;
+  nd = 0;
+  int r = 8;
   int n = r*2+1;
   int d = r*2+1;
+
+  //MPI_Allreduce(&r, &nd, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+  double size_x = d;
+  double size_y = d;
+  double size_z = d;
+
+  double dx = 1.0/size_x;
+  double dy = 1.0/size_y;
+  double dz = 1.0/size_z;
 
   int center_x = r+1;
   int center_y = r+1;
   int center_z = r+1;
 
-  procs_x = 2;
+  procs_x = 4;
   procs_y = 2;
   procs_z = 2;
 
@@ -122,7 +234,7 @@ int main(int argc, char *argv[])
 
 
 
-  double ***Unew, ***Uold, ***test_arr;
+  double ***Unew, ***Uold, ***test_arr, ***temp;
   double ***tensor_x, ***tensor_y, ***tensor_z;
   Unew = dallocate_3d(nx+2, ny+2, nz+2);
   Uold = dallocate_3d(nx+2, ny+2, nz+2);
@@ -137,6 +249,35 @@ int main(int argc, char *argv[])
   dinit_3d(tensor_y, nx+2, ny+2, nz+2);
   dinit_3d(tensor_z, nx+2, ny+2, nz+2);
 
+  double *sbuf_left = (double*)calloc(1,ny*nz*sizeof(double));
+  double *sbuf_right = (double*)calloc(1,ny*nz*sizeof(double));
+  double *sbuf_down = (double*)calloc(1,nx*nz*sizeof(double));
+  double *sbuf_up = (double*)calloc(1,nx*nz*sizeof(double));
+  double *sbuf_zdown = (double*)calloc(1,nx*ny*sizeof(double));
+  double *sbuf_zup = (double*)calloc(1,nx*ny*sizeof(double));
+
+  double *rbuf_left = (double*)calloc(1,ny*nz*sizeof(double));
+  double *rbuf_right = (double*)calloc(1,ny*nz*sizeof(double));
+  double *rbuf_down = (double*)calloc(1,nx*nz*sizeof(double));
+  double *rbuf_up = (double*)calloc(1,nx*nz*sizeof(double));
+  double *rbuf_zdown = (double*)calloc(1,nx*ny*sizeof(double));
+  double *rbuf_zup = (double*)calloc(1,nx*ny*sizeof(double));
+
+  double count = 1;
+  for(i = 1; i <= d; i++)
+  {
+    for(j = 1; j <= d; j++)
+    {
+      for(k = 1; k <= d; k++)
+      {
+        test_arr[i][j][k] = count;
+        count++;
+      }
+    }
+  }
+  double sum = 0;
+  double sum_res = 0;
+
   in = start_z;
   for(i = z0; i <= z1; i++)
   {
@@ -146,14 +287,17 @@ int main(int argc, char *argv[])
       kn = start_x;
       for(k = x0; k <= x1; k++)
       {
-        inside = (((i-center_x)*(i-center_x)) + ((j-center_y)*(j-center_y)) + ((k-center_z)*(k-center_z)));
+        /*inside = (((i-center_x)*(i-center_x)) + ((j-center_y)*(j-center_y)) + ((k-center_z)*(k-center_z)));
 
         if(inside <= r*r)
           Uold[in][jn][kn] = 1.0;
         else
-          Uold[in][jn][kn] = 0.0;
+          Uold[in][jn][kn] = 0.0;*/
 
-        //Uold[in][jn][kn] = test_arr[i][j][k];
+        Uold[in][jn][kn] = test_arr[i][j][k];
+        Unew[in][jn][kn] = test_arr[i][j][k];
+        //sum += Uold[in][jn][kn];
+        //count++;
 
         kn++;
       }
@@ -221,95 +365,172 @@ int main(int argc, char *argv[])
           tensor_y[i][j][k] = 0.0;
           tensor_z[i][j][k] = 0.0;
         }*/
+
+        //Uold[in][jn][kn] = test_arr[i][j][k];
       }
     }
   }
 
-  if(rank == 6)
+  show_grid_left_right(Uold, nx, ny, nz);
+  show_grid_up_down(Uold, nx, ny, nz);
+  show_grid_zup_zdown(Uold, nx, ny, nz);
+
+  if(left >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < ny; j++)
+      sbuf_left[i*ny+j] = Unew[i+1][j+1][1];
+
+  if(right >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < ny; j++)
+      sbuf_right[i*ny+j] = Unew[i+1][j+1][nx];
+
+  if(down >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < nx; j++)
+      sbuf_down[i*nx+j] = Unew[i+1][ny][j+1];
+
+  if(up >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < nx; j++)
+      sbuf_up[i*nx+j] = Unew[i+1][1][j+1];
+
+  if(z_down >= 0)
+  for(i = 0; i < ny; i++)
+    for(j = 0; j < nx; j++)
+      sbuf_zdown[i*nx+j] = Unew[nz][i+1][j+1];
+
+  if(z_up >= 0)
+  for(i = 0; i < ny; i++)
+    for(j = 0; j < nx; j++)
+      sbuf_zup[i*nx+j] = Unew[1][i+1][j+1];
+
+  MPI_Isend(sbuf_left, nz*ny, MPI_DOUBLE, left, TAG1, comm3d, &req[0]);
+  MPI_Isend(sbuf_right, nz*ny, MPI_DOUBLE, right, TAG2, comm3d, &req[1]);
+  MPI_Isend(sbuf_down, nx*nz, MPI_DOUBLE, down, TAG3, comm3d, &req[2]);
+  MPI_Isend(sbuf_up, nx*nz, MPI_DOUBLE, up, TAG4, comm3d, &req[3]);
+  MPI_Isend(sbuf_zdown, nx*ny, MPI_DOUBLE, z_down, TAG5, comm3d, &req[4]);
+  MPI_Isend(sbuf_zup, nx*ny, MPI_DOUBLE, z_up, TAG6, comm3d, &req[5]);
+
+  MPI_Irecv(rbuf_right, nz*ny, MPI_DOUBLE, right, TAG1, comm3d, &req[6]);
+  MPI_Irecv(rbuf_left, nz*ny, MPI_DOUBLE, left, TAG2, comm3d, &req[7]);
+  MPI_Irecv(rbuf_up, nx*nz, MPI_DOUBLE, up, TAG3, comm3d, &req[8]);
+  MPI_Irecv(rbuf_down, nx*nz, MPI_DOUBLE, down, TAG4, comm3d, &req[9]);
+  MPI_Irecv(rbuf_zup, nx*ny, MPI_DOUBLE, z_up, TAG5, comm3d, &req[10]);
+  MPI_Irecv(rbuf_zdown, nx*ny, MPI_DOUBLE, z_down, TAG6, comm3d, &req[11]);
+
+  MPI_Waitall(12, req, MPI_STATUSES_IGNORE);
+
+  if(right >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < ny; j++)
+      Unew[i+1][j+1][nx+1] = rbuf_right[i*ny+j];
+
+  if(left >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < ny; j++)
+      Unew[i+1][j+1][0] = rbuf_left[i*ny+j];
+
+  if(up >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < nx; j++)
+      Unew[i+1][0][j+1] = rbuf_up[i*nx+j];
+
+  if(down >= 0)
+  for(i = 0; i < nz; i++)
+    for(j = 0; j < nx; j++)
+      Unew[i+1][ny+1][j+1] = rbuf_down[i*nx+j];
+
+  if(z_up >= 0)
+  for(i = 0; i < ny; i++)
+    for(j = 0; j < nx; j++)
+      Unew[0][i+1][j+1] = rbuf_zup[i*nx+j];
+
+  if(z_down >= 0)
+  for(i = 0; i < ny; i++)
+    for(j = 0; j < nx; j++)
+      Unew[nz+1][i+1][j+1] = rbuf_zdown[i*nx+j];
+
+  if(rank == 0)
   {
+    //show_grid_left_right(Uold, nx, ny, nz);
+
+    //if(left >= 0)
+    /*for(i = 0; i < nz; i++)
+      for(j = 0; j < ny; j++)
+        sbuf_left[i*ny+j] = Uold[i+1][j+1][1];
+
+    if(right >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < ny; j++)
+        sbuf_right[i*ny+j] = Uold[i+1][j+1][nx];
+
+    if(right >= 0)
+    {
+      for(i = 0; i < nz; i++)
+      {
+        for(j = 0; j < ny; j++)
+        {
+          Uold[i+1][j+1][nx+1] = sbuf_left[i*ny+j];
+          //printf("%0.1f \t", sbuf_right[i*ny+j]);
+        }
+        //printf("\n");
+      }
+    }*/
+
+    for(i = 0; i <= nz+1; i++)
+    {
+      for(j = 0; j <= ny+1; j++)
+      {
+        for(k = 0; k <= nx+1; k++)
+        {
+          printf("%0.1f \t", Unew[i][j][k]);
+        }
+        printf("\n");
+      }
+      printf("\n");
+    }
+    printf("\n");
+
+    printf("rank: %d, l,r,u,d,zup,zdown(%d, %d, %d, %d, %d, %d) x0:%d x1:%d \n", rank, left, right, up, down, z_up, z_down, y0, y1);
+    printf("rank: %d \t x0,x1: (%d,%d) \t y0,y1: (%d,%d) \t z0,z1:(%d,%d) nx,ny,nz:(%d,%d,%d)\n", rank, x0, x1, y0, y1, z0, z1, nx, ny, nz);
+  }
+
+  int max_time = 0;
+  int time_iter = 0;
+
+  /*while(time_iter < max_time)
+  {
+    //interior points from 1 to d+1
     for(i = 1; i <= nz; i++)
     {
       for(j = 1; j <= ny; j++)
       {
         for(k = 1; k <= nx; k++)
         {
-          printf("%0.1f \t", tensor_x[i][j][k]);
-        }
-        printf("\n");
-      }
-      printf("\n");
-    }
-    printf("\n");
+          //Unew[i][j][k] = stress_x*(Uold[i+1][j][k] - Uold[i-1][j][k]) +
+            //stress_y*(Uold[i][j+1][k] - Uold[i][j-1][k]) +
+            //stress_z*(Uold[i][j][k+1] - Uold[i][j][k-1]);
 
-    /*for(i = 0; i <= d; i++)
-    {
-      for(j = 0; j <= d; j++)
-      {
-        for(k = 0; k <= d; k++)
-        {
-          printf("%0.1f ", test_arr[i][j][k]);
-        }
-        printf("\n");
-      }
-      printf("\n");
-    }
-    printf("\n");*/
+          Unew[i][j][k] = ((tensor_x[i][j][k]/2*dx*dx)*(Uold[i+1][j][k] - Uold[i-1][j][k])) +
+            ((tensor_y[i][j][k]/2*dy*dy)*(Uold[i][j+1][k] - Uold[i][j-1][k])) +
+            ((tensor_z[i][j][k]/2*dz*dz)*(Uold[i][j][k+1] - Uold[i][j][k-1]));
+          //if(Unew[i][j][k] >= 1.0)
+            //printf("%f \n", Unew[i][j][k]);
 
-    printf("rank: %d, l,r,u,d,zup,zdown(%d, %d, %d, %d, %d, %d) x0:%d x1:%d \n", rank, left, right, up, down, z_up, z_down, y0, y1);
-    printf("rank: %d \t x0,x1: (%d,%d) \t y0,y1: (%d,%d) \t z0,z1:(%d,%d) nx,ny,nz:(%d,%d,%d)\n", rank, x0, x1, y0, y1, z0, z1, nx, ny, nz);
-  }
-
-  //printf("rank: %d \t x0,x1: (%d,%d) \t y0,y1: (%d,%d) \t z0,z1:(%d,%d) \n", rank, x0, x1, y0, y1, z0, z1);
-
-
-  //printf("rank: %d, %d %d %d \n", rank, in, jn, kn);
-  //int check =
-
-  /*for(i = 0; i <= d; i++)
-  {
-    for(j = 0; j <= d; j++)
-    {
-      for(k = 0; k <= d; k++)
-      {
-        if((((i-3)*(i-3)) + ((j-3)*(j-3)) + ((k-3)*(k-3))) <= r*r)
-        {
-          Uold[i][j][k] = 1.0;
-        }
-        else
-          Uold[i][j][k] = 0.0;
-
-        if(k >= 0 && j == 0 && i == 0)
-          result = var * stress_x;
-
-        if(k == 0 && j >= 0 && i == 0)
-          result = var * stress_y;
-
-        if(k == 0 && j == 0 && i >= 0)
-          result = var * stress_z;
-
-        printf("%0.1f ", Uold[i][j][k]);
-      }
-      printf("\n");
-    }
-    printf("\n");
-  }
-  printf("\n");
-
-  for(i = 1; i <= d; i++)
-  {
-    for(j = 1; j <= d; j++)
-    {
-      for(k = 1; k <= d; k++)
-      {
-        if((((i-3)*(i-3)) + ((j-3)*(j-3)) + ((k-3)*(k-3))) <= r*r)
-        {
-          Unew[i][j][k] = stress_x/2*d*d*(Uold[i+1][j][k] + Uold[i-1][j][k]) +
-            stress_y/2*d*d*(Uold[i][j+1][k] + Uold[i][j-1][k]) +
-            stress_z/2*d*d*(Uold[i][j][k+1] + Uold[i][j][k-1]);
+            //printf(" %f \n", tensor_x[i][j][k]);
         }
       }
     }
+
+    temp = Uold;
+    Uold = Unew;
+    Unew = temp;
+
+    time_iter++;
   }*/
+
+  calculatel2Norm(tensor_x, nx, ny, nz, r, max_time, rank);
 
   MPI_Finalize();
 
