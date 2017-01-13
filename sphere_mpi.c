@@ -7,7 +7,7 @@ int x = 7;
 int y = 7;
 int z = 7;
 
-void calculatel2Norm(double*** E, int nx, int ny, int nz, int r, int iters, int rank)
+void calculatel2Norm(double*** E, int nx, int ny, int nz, int r, int iters, int rank, int d)
 {
   int i, j, k;
 
@@ -28,15 +28,20 @@ void calculatel2Norm(double*** E, int nx, int ny, int nz, int r, int iters, int 
             }
         }
   }
+
   MPI_Allreduce(&l2norm, &l2norm_all, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-  //l2norm_all /= (float) ((nx)*(ny)*(nz));
+  /*if(rank == 0)
+    printf("Before sqrt, %20.12e \n", l2norm_all);
+
   l2norm_all = sqrt(l2norm_all);
+  //l2norm_all /= (float) ((d)*(d)*(d));
+  //l2norm_all /= (float) ((nx)*(ny)*(nz));
 
   if(rank == 0)
   {
     printf("radius: %d, iteration %d \n", r, iters);
     printf("max: %20.12e, l2norm: %20.12e \n", mx, l2norm_all);
-  }
+  }*/
 }
 
 void show_grid_left_right1(double ***E, int x, int y, int z)
@@ -68,7 +73,7 @@ void show_grid_left_right(double ***E, int x, int y, int z)
     {
       for(k = 0; k <= x+1; k+=x+1)
       {
-        E[i][j][k] = 0;
+        E[i][j][k] = 0.0;
       }
     }
   }
@@ -84,7 +89,7 @@ void show_grid_up_down(double ***E, int x, int y, int z)
     {
       for(k = 0; k <= x+1; k++)
       {
-        E[i][j][k] = 0;
+        E[i][j][k] = 0.0;
       }
     }
   }
@@ -100,7 +105,7 @@ void show_grid_zup_zdown(double ***E, int x, int y, int z)
     {
       for(k = 0; k <= x+1; k++)
       {
-        E[i][j][k] = 0;
+        E[i][j][k] = 0.0;
       }
     }
   }
@@ -143,7 +148,7 @@ int main(int argc, char *argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   nd = 0;
-  int r = 8;
+  int r = 6;
   int n = r*2+1;
   int d = r*2+1;
 
@@ -161,7 +166,7 @@ int main(int argc, char *argv[])
   int center_y = r+1;
   int center_z = r+1;
 
-  procs_x = 4;
+  procs_x = 2;
   procs_y = 2;
   procs_z = 2;
 
@@ -263,7 +268,7 @@ int main(int argc, char *argv[])
   double *rbuf_zdown = (double*)calloc(1,nx*ny*sizeof(double));
   double *rbuf_zup = (double*)calloc(1,nx*ny*sizeof(double));
 
-  double count = 1;
+  double count = 1.0;
   for(i = 1; i <= d; i++)
   {
     for(j = 1; j <= d; j++)
@@ -287,18 +292,20 @@ int main(int argc, char *argv[])
       kn = start_x;
       for(k = x0; k <= x1; k++)
       {
-        /*inside = (((i-center_x)*(i-center_x)) + ((j-center_y)*(j-center_y)) + ((k-center_z)*(k-center_z)));
+        inside = (((i-center_x)*(i-center_x)) + ((j-center_y)*(j-center_y)) + ((k-center_z)*(k-center_z)));
 
         if(inside <= r*r)
-          Uold[in][jn][kn] = 1.0;
+        {
+          Uold[in][jn][kn] = test_arr[i][j][k];
+          //Uold[in][jn][kn] = 23.0;
+        }
         else
-          Uold[in][jn][kn] = 0.0;*/
+          Uold[in][jn][kn] = 0.0;
 
-        Uold[in][jn][kn] = test_arr[i][j][k];
-        Unew[in][jn][kn] = test_arr[i][j][k];
+        //Uold[in][jn][kn] = test_arr[i][j][k];
+        //Unew[in][jn][kn] = test_arr[i][j][k];
         //sum += Uold[in][jn][kn];
         //count++;
-
         kn++;
       }
 
@@ -348,9 +355,9 @@ int main(int argc, char *argv[])
         //{
           if((Uold[i-1][j][k] != 0 && Uold[i+1][j][k] != 0) && (Uold[i][j-1][k] != 0 && Uold[i][j+1][k] != 0) && (Uold[i][j][k-1] != 0 && Uold[i][j][k+1] != 0))
           {
-            tensor_x[i][j][k] = 23;
-            tensor_y[i][j][k] = 23;
-            tensor_z[i][j][k] = 23;
+            tensor_x[i][j][k] = 2;
+            tensor_y[i][j][k] = 2;
+            tensor_z[i][j][k] = 2;
           }
           else
           {
@@ -371,120 +378,19 @@ int main(int argc, char *argv[])
     }
   }
 
-  show_grid_left_right(Uold, nx, ny, nz);
-  show_grid_up_down(Uold, nx, ny, nz);
-  show_grid_zup_zdown(Uold, nx, ny, nz);
+  //show_grid_left_right(Uold, nx, ny, nz);
+  //show_grid_up_down(Uold, nx, ny, nz);
+  //show_grid_zup_zdown(Uold, nx, ny, nz);
 
-  if(left >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < ny; j++)
-      sbuf_left[i*ny+j] = Unew[i+1][j+1][1];
-
-  if(right >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < ny; j++)
-      sbuf_right[i*ny+j] = Unew[i+1][j+1][nx];
-
-  if(down >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < nx; j++)
-      sbuf_down[i*nx+j] = Unew[i+1][ny][j+1];
-
-  if(up >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < nx; j++)
-      sbuf_up[i*nx+j] = Unew[i+1][1][j+1];
-
-  if(z_down >= 0)
-  for(i = 0; i < ny; i++)
-    for(j = 0; j < nx; j++)
-      sbuf_zdown[i*nx+j] = Unew[nz][i+1][j+1];
-
-  if(z_up >= 0)
-  for(i = 0; i < ny; i++)
-    for(j = 0; j < nx; j++)
-      sbuf_zup[i*nx+j] = Unew[1][i+1][j+1];
-
-  MPI_Isend(sbuf_left, nz*ny, MPI_DOUBLE, left, TAG1, comm3d, &req[0]);
-  MPI_Isend(sbuf_right, nz*ny, MPI_DOUBLE, right, TAG2, comm3d, &req[1]);
-  MPI_Isend(sbuf_down, nx*nz, MPI_DOUBLE, down, TAG3, comm3d, &req[2]);
-  MPI_Isend(sbuf_up, nx*nz, MPI_DOUBLE, up, TAG4, comm3d, &req[3]);
-  MPI_Isend(sbuf_zdown, nx*ny, MPI_DOUBLE, z_down, TAG5, comm3d, &req[4]);
-  MPI_Isend(sbuf_zup, nx*ny, MPI_DOUBLE, z_up, TAG6, comm3d, &req[5]);
-
-  MPI_Irecv(rbuf_right, nz*ny, MPI_DOUBLE, right, TAG1, comm3d, &req[6]);
-  MPI_Irecv(rbuf_left, nz*ny, MPI_DOUBLE, left, TAG2, comm3d, &req[7]);
-  MPI_Irecv(rbuf_up, nx*nz, MPI_DOUBLE, up, TAG3, comm3d, &req[8]);
-  MPI_Irecv(rbuf_down, nx*nz, MPI_DOUBLE, down, TAG4, comm3d, &req[9]);
-  MPI_Irecv(rbuf_zup, nx*ny, MPI_DOUBLE, z_up, TAG5, comm3d, &req[10]);
-  MPI_Irecv(rbuf_zdown, nx*ny, MPI_DOUBLE, z_down, TAG6, comm3d, &req[11]);
-
-  MPI_Waitall(12, req, MPI_STATUSES_IGNORE);
-
-  if(right >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < ny; j++)
-      Unew[i+1][j+1][nx+1] = rbuf_right[i*ny+j];
-
-  if(left >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < ny; j++)
-      Unew[i+1][j+1][0] = rbuf_left[i*ny+j];
-
-  if(up >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < nx; j++)
-      Unew[i+1][0][j+1] = rbuf_up[i*nx+j];
-
-  if(down >= 0)
-  for(i = 0; i < nz; i++)
-    for(j = 0; j < nx; j++)
-      Unew[i+1][ny+1][j+1] = rbuf_down[i*nx+j];
-
-  if(z_up >= 0)
-  for(i = 0; i < ny; i++)
-    for(j = 0; j < nx; j++)
-      Unew[0][i+1][j+1] = rbuf_zup[i*nx+j];
-
-  if(z_down >= 0)
-  for(i = 0; i < ny; i++)
-    for(j = 0; j < nx; j++)
-      Unew[nz+1][i+1][j+1] = rbuf_zdown[i*nx+j];
-
-  if(rank == 0)
+  if(rank == 7)
   {
-    //show_grid_left_right(Uold, nx, ny, nz);
-
-    //if(left >= 0)
-    /*for(i = 0; i < nz; i++)
-      for(j = 0; j < ny; j++)
-        sbuf_left[i*ny+j] = Uold[i+1][j+1][1];
-
-    if(right >= 0)
-    for(i = 0; i < nz; i++)
-      for(j = 0; j < ny; j++)
-        sbuf_right[i*ny+j] = Uold[i+1][j+1][nx];
-
-    if(right >= 0)
+    for(i = 1; i <= nz; i++)
     {
-      for(i = 0; i < nz; i++)
+      for(j = 1; j <= ny; j++)
       {
-        for(j = 0; j < ny; j++)
+        for(k = 1; k <= nx; k++)
         {
-          Uold[i+1][j+1][nx+1] = sbuf_left[i*ny+j];
-          //printf("%0.1f \t", sbuf_right[i*ny+j]);
-        }
-        //printf("\n");
-      }
-    }*/
-
-    for(i = 0; i <= nz+1; i++)
-    {
-      for(j = 0; j <= ny+1; j++)
-      {
-        for(k = 0; k <= nx+1; k++)
-        {
-          printf("%0.1f \t", Unew[i][j][k]);
+          printf("%0.1f \t", Uold[i][j][k]);
         }
         printf("\n");
       }
@@ -499,7 +405,7 @@ int main(int argc, char *argv[])
   int max_time = 0;
   int time_iter = 0;
 
-  /*while(time_iter < max_time)
+  while(time_iter < max_time)
   {
     //interior points from 1 to d+1
     for(i = 1; i <= nz; i++)
@@ -515,22 +421,96 @@ int main(int argc, char *argv[])
           Unew[i][j][k] = ((tensor_x[i][j][k]/2*dx*dx)*(Uold[i+1][j][k] - Uold[i-1][j][k])) +
             ((tensor_y[i][j][k]/2*dy*dy)*(Uold[i][j+1][k] - Uold[i][j-1][k])) +
             ((tensor_z[i][j][k]/2*dz*dz)*(Uold[i][j][k+1] - Uold[i][j][k-1]));
-          //if(Unew[i][j][k] >= 1.0)
-            //printf("%f \n", Unew[i][j][k]);
 
-            //printf(" %f \n", tensor_x[i][j][k]);
+
         }
       }
     }
+
+    if(left >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < ny; j++)
+        sbuf_left[i*ny+j] = Unew[i+1][j+1][1];
+
+    if(right >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < ny; j++)
+        sbuf_right[i*ny+j] = Unew[i+1][j+1][nx];
+
+    if(down >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < nx; j++)
+        sbuf_down[i*nx+j] = Unew[i+1][ny][j+1];
+
+    if(up >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < nx; j++)
+        sbuf_up[i*nx+j] = Unew[i+1][1][j+1];
+
+    if(z_down >= 0)
+    for(i = 0; i < ny; i++)
+      for(j = 0; j < nx; j++)
+        sbuf_zdown[i*nx+j] = Unew[nz][i+1][j+1];
+
+    if(z_up >= 0)
+    for(i = 0; i < ny; i++)
+      for(j = 0; j < nx; j++)
+        sbuf_zup[i*nx+j] = Unew[1][i+1][j+1];
+
+    MPI_Isend(sbuf_left, nz*ny, MPI_DOUBLE, left, TAG1, comm3d, &req[0]);
+    MPI_Isend(sbuf_right, nz*ny, MPI_DOUBLE, right, TAG2, comm3d, &req[1]);
+    MPI_Isend(sbuf_down, nx*nz, MPI_DOUBLE, down, TAG3, comm3d, &req[2]);
+    MPI_Isend(sbuf_up, nx*nz, MPI_DOUBLE, up, TAG4, comm3d, &req[3]);
+    MPI_Isend(sbuf_zdown, nx*ny, MPI_DOUBLE, z_down, TAG5, comm3d, &req[4]);
+    MPI_Isend(sbuf_zup, nx*ny, MPI_DOUBLE, z_up, TAG6, comm3d, &req[5]);
+
+    MPI_Irecv(rbuf_right, nz*ny, MPI_DOUBLE, right, TAG1, comm3d, &req[6]);
+    MPI_Irecv(rbuf_left, nz*ny, MPI_DOUBLE, left, TAG2, comm3d, &req[7]);
+    MPI_Irecv(rbuf_up, nx*nz, MPI_DOUBLE, up, TAG3, comm3d, &req[8]);
+    MPI_Irecv(rbuf_down, nx*nz, MPI_DOUBLE, down, TAG4, comm3d, &req[9]);
+    MPI_Irecv(rbuf_zup, nx*ny, MPI_DOUBLE, z_up, TAG5, comm3d, &req[10]);
+    MPI_Irecv(rbuf_zdown, nx*ny, MPI_DOUBLE, z_down, TAG6, comm3d, &req[11]);
+
+    MPI_Waitall(12, req, MPI_STATUSES_IGNORE);
+
+    if(right >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < ny; j++)
+        Unew[i+1][j+1][nx+1] = rbuf_right[i*ny+j];
+
+    if(left >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < ny; j++)
+        Unew[i+1][j+1][0] = rbuf_left[i*ny+j];
+
+    if(up >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < nx; j++)
+        Unew[i+1][0][j+1] = rbuf_up[i*nx+j];
+
+    if(down >= 0)
+    for(i = 0; i < nz; i++)
+      for(j = 0; j < nx; j++)
+        Unew[i+1][ny+1][j+1] = rbuf_down[i*nx+j];
+
+    if(z_up >= 0)
+    for(i = 0; i < ny; i++)
+      for(j = 0; j < nx; j++)
+        Unew[0][i+1][j+1] = rbuf_zup[i*nx+j];
+
+    if(z_down >= 0)
+    for(i = 0; i < ny; i++)
+      for(j = 0; j < nx; j++)
+        Unew[nz+1][i+1][j+1] = rbuf_zdown[i*nx+j];
 
     temp = Uold;
     Uold = Unew;
     Unew = temp;
 
     time_iter++;
-  }*/
+  }
 
-  calculatel2Norm(tensor_x, nx, ny, nz, r, max_time, rank);
+  calculatel2Norm(Uold, nx, ny, nz, r, max_time, rank, d);
 
   MPI_Finalize();
 
