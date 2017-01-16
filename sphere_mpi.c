@@ -23,14 +23,14 @@ void calculatel2Norm(double*** E, int nx, int ny, int nz, int r, int iters, int 
           {
             l2norm += E[i][j][k]*E[i][j][k];
 
-            if (E[i][j][k] > mx)
-            mx = E[i][j][k];
+            /*if (E[i][j][k] > mx)
+            mx = E[i][j][k];*/
             }
         }
   }
 
   MPI_Allreduce(&l2norm, &l2norm_all, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-  /*if(rank == 0)
+  if(rank == 0)
     printf("Before sqrt, %20.12e \n", l2norm_all);
 
   l2norm_all = sqrt(l2norm_all);
@@ -41,7 +41,7 @@ void calculatel2Norm(double*** E, int nx, int ny, int nz, int r, int iters, int 
   {
     printf("radius: %d, iteration %d \n", r, iters);
     printf("max: %20.12e, l2norm: %20.12e \n", mx, l2norm_all);
-  }*/
+  }
 }
 
 void show_grid_left_right1(double ***E, int x, int y, int z)
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
   int center_y = r+1;
   int center_z = r+1;
 
-  procs_x = 2;
+  procs_x = 4;
   procs_y = 2;
   procs_z = 2;
 
@@ -269,6 +269,7 @@ int main(int argc, char *argv[])
   double *rbuf_zup = (double*)calloc(1,nx*ny*sizeof(double));
 
   double count = 1.0;
+  int test = 1;
   for(i = 1; i <= d; i++)
   {
     for(j = 1; j <= d; j++)
@@ -297,10 +298,16 @@ int main(int argc, char *argv[])
         if(inside <= r*r)
         {
           Uold[in][jn][kn] = test_arr[i][j][k];
-          //Uold[in][jn][kn] = 23.0;
+          //Unew[in][jn][kn] = test_arr[i][j][k];
+          //Uold[in][jn][kn] = 1;
+
+          count++;
         }
         else
+        {
           Uold[in][jn][kn] = 0.0;
+          //Unew[in][jn][kn] = 0.0;
+        }
 
         //Uold[in][jn][kn] = test_arr[i][j][k];
         //Unew[in][jn][kn] = test_arr[i][j][k];
@@ -355,7 +362,7 @@ int main(int argc, char *argv[])
         //{
           if((Uold[i-1][j][k] != 0 && Uold[i+1][j][k] != 0) && (Uold[i][j-1][k] != 0 && Uold[i][j+1][k] != 0) && (Uold[i][j][k-1] != 0 && Uold[i][j][k+1] != 0))
           {
-            tensor_x[i][j][k] = 2;
+            tensor_x[i][j][k] = 59.10;
             tensor_y[i][j][k] = 2;
             tensor_z[i][j][k] = 2;
           }
@@ -378,19 +385,23 @@ int main(int argc, char *argv[])
     }
   }
 
+
+
   //show_grid_left_right(Uold, nx, ny, nz);
   //show_grid_up_down(Uold, nx, ny, nz);
   //show_grid_zup_zdown(Uold, nx, ny, nz);
+  double l2_new = 0;
+  double all_sum = 0;
 
-  if(rank == 7)
+  if(rank == 0)
   {
-    for(i = 1; i <= nz; i++)
+    for(i = 0; i <= nz+1; i++)
     {
-      for(j = 1; j <= ny; j++)
+      for(j = 0; j <= ny+1; j++)
       {
-        for(k = 1; k <= nx; k++)
+        for(k = 0; k <= nx+1; k++)
         {
-          printf("%0.1f \t", Uold[i][j][k]);
+          printf("%0.1f \t", Unew[i][j][k]);
         }
         printf("\n");
       }
@@ -402,7 +413,7 @@ int main(int argc, char *argv[])
     printf("rank: %d \t x0,x1: (%d,%d) \t y0,y1: (%d,%d) \t z0,z1:(%d,%d) nx,ny,nz:(%d,%d,%d)\n", rank, x0, x1, y0, y1, z0, z1, nx, ny, nz);
   }
 
-  int max_time = 0;
+  int max_time = 12;
   int time_iter = 0;
 
   while(time_iter < max_time)
@@ -508,6 +519,26 @@ int main(int argc, char *argv[])
     Unew = temp;
 
     time_iter++;
+  }
+
+  for(i = 1; i <= nz; i++)
+  {
+    for(j = 1; j <= ny; j++)
+    {
+      for(k = 1; k <= nx; k++)
+      {
+        l2_new += Uold[i][j][k]*Uold[i][j][k];
+      }
+    }
+  }
+
+  MPI_Allreduce(&l2_new, &all_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  if(rank == 0)
+  {
+    printf("NEW SUM: %f \n", all_sum);
+    all_sum = sqrt(all_sum);
+    printf("after sqrt: %0.9f \n", all_sum);
   }
 
   calculatel2Norm(Uold, nx, ny, nz, r, max_time, rank, d);
