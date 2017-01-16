@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
   int center_y = r+1;
   int center_z = r+1;
 
-  procs_x = 4;
+  procs_x = 2;
   procs_y = 2;
   procs_z = 2;
 
@@ -395,13 +395,13 @@ int main(int argc, char *argv[])
 
   if(rank == 0)
   {
-    for(i = 0; i <= nz+1; i++)
+    for(i = 1; i <= nz; i++)
     {
-      for(j = 0; j <= ny+1; j++)
+      for(j = 1; j <= ny; j++)
       {
-        for(k = 0; k <= nx+1; k++)
+        for(k = 1; k <= nx; k+=nx-1)
         {
-          printf("%0.1f \t", Unew[i][j][k]);
+          printf("%0.1f \t", Uold[i][j][k]);
         }
         printf("\n");
       }
@@ -418,13 +418,11 @@ int main(int argc, char *argv[])
 
   while(time_iter < max_time)
   {
-
-
     for(i = 1; i <= nz; i++)
     {
       for(j = 1; j <= ny; j++)
       {
-        for(k = 1; k <= nx; k+=nx)
+        for(k = 1; k <= nx; k+=nx-1)
         {
           Unew[i][j][k] = ((tensor_x[i][j][k]/2*dx*dx)*(Uold[i+1][j][k] - Uold[i-1][j][k])) +
             ((tensor_y[i][j][k]/2*dy*dy)*(Uold[i][j+1][k] - Uold[i][j-1][k])) +
@@ -452,7 +450,7 @@ int main(int argc, char *argv[])
 
     for(i = 1; i <= nz; i++)
     {
-      for(j = 1; j <= ny; j+=ny)
+      for(j = 1; j <= ny; j+=ny-1)
       {
         for(k = 1; k <= nx; k++)
         {
@@ -479,7 +477,7 @@ int main(int argc, char *argv[])
     MPI_Isend(sbuf_up, nx*nz, MPI_DOUBLE, up, TAG4, comm3d, &req[6]);
     MPI_Irecv(rbuf_down, nx*nz, MPI_DOUBLE, down, TAG4, comm3d, &req[7]);
 
-    for(i = 1; i <= nz; i+=nz)
+    for(i = 1; i <= nz; i+=nz-1)
     {
       for(j = 1; j <= ny; j++)
       {
