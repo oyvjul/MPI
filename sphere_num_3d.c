@@ -9,7 +9,7 @@ void calculatel2Norm(double*** E, int d, int r, int iters)
   int i, j, k;
 
   float mx = -1;
-  float l2norm = 0;
+  double l2norm = 0;
 
   for (i = 1; i <= d; i++)
   {
@@ -24,11 +24,11 @@ void calculatel2Norm(double*** E, int d, int r, int iters)
             }
         }
   }
-
-  l2norm /= (float) ((d)*(d)*(d));
+  printf("Before sqrt: %f \n", l2norm);
+  //l2norm /= (float) ((d)*(d)*(d));
   l2norm = sqrt(l2norm);
   printf("radius: %d, iteration %d \n", r, iters);
-  printf("max: %20.12e, l2norm: %20.12e \n", mx, l2norm);
+  printf("max: %20.12e, l2norm: %0.10f \n", mx, l2norm);
 }
 
 int main(int argc, char *argv[])
@@ -38,7 +38,9 @@ int main(int argc, char *argv[])
   double ***temp, ***Unew, ***Uold;
   double ***tensor_x, ***tensor_y, ***tensor_z;
 
-  int r = 5;
+  clock_t begin = clock();
+
+  int r = 100;
   int d = r*2+1;
 
   int center_x = r+1;
@@ -82,6 +84,7 @@ int main(int argc, char *argv[])
   double count = 1.0;
 
   //fill interior points, 1 if inside, else 0
+  int testing = 1;
   for(i = 1; i <= d; i++)
   {
     for(j = 1; j <= d; j++)
@@ -95,15 +98,21 @@ int main(int argc, char *argv[])
           //if(count == 3)
             //count = 1.0;
 
-          Uold[i][j][k] = 1;
+          Uold[i][j][k] = 50.0;
+          /*if(testing % 2 == 1)
+            Uold[i][j][k] = 2;
+          else
+            Uold[i][j][k] = 3;
 
-
-          count++;
+          testing++;*/
+          //count++;
         }
         else
         {
           Uold[i][j][k] = 0.0;
         }
+
+        count++;
       }
     }
   }
@@ -116,13 +125,13 @@ int main(int argc, char *argv[])
       {
         inside = (((i-center_x)*(i-center_x)) + ((j-center_y)*(j-center_y)) + ((k-center_z)*(k-center_z)));
 
-        if(inside <= r*r)
-        {
+        //if(inside <= r*r)
+        //{
           if((Uold[i-1][j][k] != 0 && Uold[i+1][j][k] != 0) && (Uold[i][j-1][k] != 0 && Uold[i][j+1][k] != 0) && (Uold[i][j][k-1] != 0 && Uold[i][j][k+1] != 0))
           {
-            tensor_x[i][j][k] = 23;
-            tensor_y[i][j][k] = 23;
-            tensor_z[i][j][k] = 23;
+            tensor_x[i][j][k] = 159.0;
+            tensor_y[i][j][k] = 160;
+            tensor_z[i][j][k] = 160;
           }
           else
           {
@@ -130,18 +139,18 @@ int main(int argc, char *argv[])
             tensor_y[i][j][k] = 0.0;
             tensor_z[i][j][k] = 0.0;
           }
-        }
+        /*}
         else
         {
           tensor_x[i][j][k] = 0.0;
           tensor_y[i][j][k] = 0.0;
           tensor_z[i][j][k] = 0.0;
-        }
+        }*/
       }
     }
   }
 
-  int max_time = 0;
+  int max_time = 50;
   int time_iter = 0;
 
   while(time_iter < max_time)
@@ -175,19 +184,26 @@ int main(int argc, char *argv[])
     time_iter++;
   }
 
+  clock_t end = clock();
+  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+
+  printf("Elapsed time: %f \n", time_spent);
+
+  /*int xx = 1;
   for(i = 1; i <= d; i++)
   {
     for(j = 1; j <= d; j++)
     {
       for(k = 1; k <= d; k++)
       {
-        printf("%0.1f \t", tensor_x[i][j][k]);
+        //printf("");
+        printf("%0.1f \t", Uold[i][j][k]);
       }
       printf("\n");
     }
     printf("\n");
   }
-  printf("\n");
+  printf("\n");*/
 
   //srand((unsigned) time(&rand_time));
 
