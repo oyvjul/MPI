@@ -147,8 +147,11 @@ int main(int argc, char *argv[])
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+  double t1, t2;
+  t1 = MPI_Wtime();
+
   nd = 0;
-  int r = 6;
+  int r = 100;
   int n = r*2+1;
   int d = r*2+1;
 
@@ -297,11 +300,11 @@ int main(int argc, char *argv[])
 
         if(inside <= r*r)
         {
-          Uold[in][jn][kn] = test_arr[i][j][k];
+          //Uold[in][jn][kn] = test_arr[i][j][k];
           //Unew[in][jn][kn] = test_arr[i][j][k];
-          //Uold[in][jn][kn] = 1;
+          Uold[in][jn][kn] = 50.0;
 
-          count++;
+          //count++;
         }
         else
         {
@@ -362,9 +365,9 @@ int main(int argc, char *argv[])
         //{
           if((Uold[i-1][j][k] != 0 && Uold[i+1][j][k] != 0) && (Uold[i][j-1][k] != 0 && Uold[i][j+1][k] != 0) && (Uold[i][j][k-1] != 0 && Uold[i][j][k+1] != 0))
           {
-            tensor_x[i][j][k] = 59.10;
-            tensor_y[i][j][k] = 2;
-            tensor_z[i][j][k] = 2;
+            tensor_x[i][j][k] = 159.0;
+            tensor_y[i][j][k] = 160;
+            tensor_z[i][j][k] = 160;
           }
           else
           {
@@ -393,7 +396,7 @@ int main(int argc, char *argv[])
   double l2_new = 0;
   double all_sum = 0;
 
-  if(rank == 0)
+  /*if(rank == 0)
   {
     for(i = 0; i <= nz+1; i++)
     {
@@ -411,9 +414,9 @@ int main(int argc, char *argv[])
 
     printf("rank: %d, l,r,u,d,zup,zdown(%d, %d, %d, %d, %d, %d) x0:%d x1:%d \n", rank, left, right, up, down, z_up, z_down, y0, y1);
     printf("rank: %d \t x0,x1: (%d,%d) \t y0,y1: (%d,%d) \t z0,z1:(%d,%d) nx,ny,nz:(%d,%d,%d)\n", rank, x0, x1, y0, y1, z0, z1, nx, ny, nz);
-  }
+  }*/
 
-  int max_time = 12;
+  int max_time = 50;
   int time_iter = 0;
 
   while(time_iter < max_time)
@@ -438,32 +441,32 @@ int main(int argc, char *argv[])
       }
     }
 
-    if(left >= 0)
+    //if(left >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < ny; j++)
         sbuf_left[i*ny+j] = Unew[i+1][j+1][1];
 
-    if(right >= 0)
+    //if(right >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < ny; j++)
         sbuf_right[i*ny+j] = Unew[i+1][j+1][nx];
 
-    if(down >= 0)
+    //if(down >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < nx; j++)
         sbuf_down[i*nx+j] = Unew[i+1][ny][j+1];
 
-    if(up >= 0)
+    //if(up >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < nx; j++)
         sbuf_up[i*nx+j] = Unew[i+1][1][j+1];
 
-    if(z_down >= 0)
+    //if(z_down >= 0)
     for(i = 0; i < ny; i++)
       for(j = 0; j < nx; j++)
         sbuf_zdown[i*nx+j] = Unew[nz][i+1][j+1];
 
-    if(z_up >= 0)
+    //if(z_up >= 0)
     for(i = 0; i < ny; i++)
       for(j = 0; j < nx; j++)
         sbuf_zup[i*nx+j] = Unew[1][i+1][j+1];
@@ -484,32 +487,32 @@ int main(int argc, char *argv[])
 
     MPI_Waitall(12, req, MPI_STATUSES_IGNORE);
 
-    if(right >= 0)
+    //if(right >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < ny; j++)
         Unew[i+1][j+1][nx+1] = rbuf_right[i*ny+j];
 
-    if(left >= 0)
+    //if(left >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < ny; j++)
         Unew[i+1][j+1][0] = rbuf_left[i*ny+j];
 
-    if(up >= 0)
+    //if(up >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < nx; j++)
         Unew[i+1][0][j+1] = rbuf_up[i*nx+j];
 
-    if(down >= 0)
+    //if(down >= 0)
     for(i = 0; i < nz; i++)
       for(j = 0; j < nx; j++)
         Unew[i+1][ny+1][j+1] = rbuf_down[i*nx+j];
 
-    if(z_up >= 0)
+    //if(z_up >= 0)
     for(i = 0; i < ny; i++)
       for(j = 0; j < nx; j++)
         Unew[0][i+1][j+1] = rbuf_zup[i*nx+j];
 
-    if(z_down >= 0)
+    //if(z_down >= 0)
     for(i = 0; i < ny; i++)
       for(j = 0; j < nx; j++)
         Unew[nz+1][i+1][j+1] = rbuf_zdown[i*nx+j];
@@ -520,6 +523,9 @@ int main(int argc, char *argv[])
 
     time_iter++;
   }
+
+  t2 = MPI_Wtime();
+  printf( "Elapsed time is: %f \n", t2 - t1);
 
   for(i = 1; i <= nz; i++)
   {
@@ -538,10 +544,10 @@ int main(int argc, char *argv[])
   {
     printf("NEW SUM: %f \n", all_sum);
     all_sum = sqrt(all_sum);
-    printf("after sqrt: %0.9f \n", all_sum);
+    printf("after sqrt: %0.10f \n", all_sum);
   }
 
-  calculatel2Norm(Uold, nx, ny, nz, r, max_time, rank, d);
+  //calculatel2Norm(Uold, nx, ny, nz, r, max_time, rank, d);
 
   MPI_Finalize();
 
