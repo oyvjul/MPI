@@ -205,8 +205,14 @@ int main(int argc, char *argv[])
 
   double arr[5][5][5];
 
-  //det_a = (a[0]*b[1]*c[2]*constant) + (a[0]*b[2]*constant*d[1]) + (a[0]*constant*c[1]*d[3])
-        //+ (a[1]*b[0]*constant*d[3]) + ()
+  det_a = (a[0]*b[1]*c[2]*constant) + (a[0]*b[2]*constant*d[1]) + (a[0]*constant*c[1]*d[3])
+        + (a[1]*b[0]*constant*d[3]) + (a[1]*b[2]*c[0]*constant) + (a[1]*constant*c[2]*d[0])
+        + (a[2]*b[0]*c[1]*constant) + (a[2]*b[1]*constant*d[0]) + (a[2]*constant*c[0]*d[1])
+        + (constant*b[0]*c[2]*d[1]) + (constant*b[1]*c[0]*d[2]) + (constant*b[2]*c[1]*d[0])
+        - (a[0]*b[1]**constant*d[2]) - (a[0]*b[2]*constant*d[1]) - (a[0]*constant*c[1]*d[3])
+        - (a[1]*b[0]*constant*d[3]) - (a[1]*b[2]*c[0]*constant) - (a[1]*constant*c[2]*d[0])
+        - (a[2]*b[0]*c[1]*constant) - (a[2]*b[1]*constant*d[0]) - (a[2]*constant*c[0]*d[1])
+        - (constant*b[0]*c[2]*d[1]) - (constant*b[1]*c[0]*d[2]) - (constant*b[2]*c[1]*d[0]):
 
 
 
