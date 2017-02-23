@@ -220,13 +220,64 @@ void calculate_centroid(meshdata *m)
   }
 }
 
-void determinant(double *nodes, int a, int b, int c, int d)
+double determinant(double *a, double *b, double *c, double *d)
 {
-  const double constant = 1;
+  const double constant = 1.0;
+  double determinant;
   double det_0, det_1, det_2, det_3, det_4;
 
-  //det_0 =
+  determinant = (a[0]*b[1]*c[2]*constant) + (a[0]*b[2]*constant*d[1]) + (a[0]*constant*c[1]*d[2])
+        + (a[1]*b[0]*constant*d[2]) + (a[1]*b[2]*c[0]*constant) + (a[1]*constant*c[2]*d[0])
+        + (a[2]*b[0]*c[1]*constant) + (a[2]*b[1]*constant*d[0]) + (a[2]*constant*c[0]*d[1])
+        + (constant*b[0]*c[2]*d[1]) + (constant*b[1]*c[0]*d[2]) + (constant*b[2]*c[1]*d[0])
+        - (a[0]*b[1]*constant*d[2]) - (a[0]*b[2]*c[1]*constant) - (a[0]*constant*c[2]*d[1])
+        - (a[1]*b[0]*c[2]*constant) - (a[1]*b[2]*constant*d[0]) - (a[1]*constant*c[0]*d[2])
+        - (a[2]*b[0]*constant*d[1]) - (a[2]*b[1]*c[0]*constant) - (a[2]*constant*c[1]*d[0])
+        - (constant*b[0]*c[1]*d[2]) - (constant*b[1]*c[2]*d[0]) - (constant*b[2]*c[0]*d[1]);
 
+  return determinant;
+}
+
+int inside(meshdata *m, double point_x, double point_y, double point_z)
+{
+  int i, j, k;
+  double a_vector[3], b_vector[3], c_vector[3], d_vector[3];
+  int a, b, c, d;
+  double point_vector[3];
+  double det_0, det_1, det_2, det_3, det_4;
+
+  point_vector[0] = point_x;
+  point_vector[1] = point_y;
+  point_vector[2] = point_z;
+
+  for(i = 0; i < m->numtet; i++)
+  {
+    a = m->elements[i*4];
+    b = m->elements[i*4+1];
+    c = m->elements[i*4+2];
+    d = m->elements[i*4+3];
+
+    for(j = 0; j < 3; j++)
+    {
+      a_vector[j] = m->nodes[a*3+j];
+      b_vector[j] = m->nodes[b*3+j];
+      c_vector[j] = m->nodes[c*3+j];
+      d_vector[j] = m->nodes[d*3+j];
+    }
+
+    det_0 = determinant(a_vector, b_vector, c_vector, d_vector);
+    det_1 = determinant(point_vector, b_vector, c_vector, d_vector);
+    det_2 = determinant(a_vector, point_vector, c_vector, d_vector);
+    det_3 = determinant(a_vector, b_vector, point_vector, d_vector);
+    det_4 = determinant(a_vector, b_vector, c_vector, point_vector);
+
+    if(det_0 == (det_1+det_2+det_3+det_4))
+      return 1;
+    else
+      return 0;
+  }
+
+  return 0;
 }
 
 int main(int argc, char *argv[])
@@ -246,23 +297,28 @@ int main(int argc, char *argv[])
   int y = 10;
   int z = 10;
   double x_step, y_step, z_step;
+  double det_a;
+  u_new = dallocate_3d(x+2, y+2, z+2);
+  u_old = dallocate_3d(x+2, y+2, z+2);
+  dinit_3d(u_new, x+2, y+2, z+2);
+  dinit_3d(u_old, x+2, y+2, z+2);
 
   cube *grid, point;
   grid = calloc(x*y*z, sizeof(*grid));
 
-  double a[3] = {1.1, 1.2, 1.3};
-  double b[3] = {2.1, 2.2, 2.3};
-  double c[3] = {3.1, 3.2, 3.3};
-  double d[3] = {3.1, 3.2, 3.3};
+  double a[3] = {3, 3, 3};
+  double b[3] = {0, 1, 0};
+  double c[3] = {0, 0, 1};
+  double d[3] = {0, 0, 0};
 
-  /*det_a = (a[0]*b[1]*c[2]*constant) + (a[0]*b[2]*constant*d[1]) + (a[0]*constant*c[1]*d[3])
-        + (a[1]*b[0]*constant*d[3]) + (a[1]*b[2]*c[0]*constant) + (a[1]*constant*c[2]*d[0])
+  /*det_a = (a[0]*b[1]*c[2]*constant) + (a[0]*b[2]*constant*d[1]) + (a[0]*constant*c[1]*d[2])
+        + (a[1]*b[0]*constant*d[2]) + (a[1]*b[2]*c[0]*constant) + (a[1]*constant*c[2]*d[0])
         + (a[2]*b[0]*c[1]*constant) + (a[2]*b[1]*constant*d[0]) + (a[2]*constant*c[0]*d[1])
         + (constant*b[0]*c[2]*d[1]) + (constant*b[1]*c[0]*d[2]) + (constant*b[2]*c[1]*d[0])
-        //- (a[0]*b[1]*constant*d[2]) - (a[0]*b[2]*constant*d[1]) - (a[0]*constant*c[1]*d[3])
-        - (a[1]*b[0]*constant*d[3]) - (a[1]*b[2]*c[0]*constant) - (a[1]*constant*c[2]*d[0])
-        - (a[2]*b[0]*c[1]*constant) - (a[2]*b[1]*constant*d[0]) - (a[2]*constant*c[0]*d[1])
-        - (constant*b[0]*c[2]*d[1]) - (constant*b[1]*c[0]*d[2]) - (constant*b[2]*c[1]*d[0]);*/
+        - (a[0]*b[1]*constant*d[2]) - (a[0]*b[2]*c[1]*constant) - (a[0]*constant*c[2]*d[1])
+        - (a[1]*b[0]*c[2]*constant) - (a[1]*b[2]*constant*d[0]) - (a[1]*constant*c[0]*d[2])
+        - (a[2]*b[0]*constant*d[1]) - (a[2]*b[1]*c[0]*constant) - (a[2]*constant*c[1]*d[0])
+        - (constant*b[0]*c[1]*d[2]) - (constant*b[1]*c[2]*d[0]) - (constant*b[2]*c[0]*d[1]);*/
 
 
 
@@ -274,24 +330,26 @@ int main(int argc, char *argv[])
   z_step = (z_max - z_min)/(double)z;
 
   printf("x_max: %f \t x_min: %f \t y_max: %f \t y_min: %f \t z_max: %f \t z_min: %f\n", x_max, x_min, y_max, y_min, z_max, z_min);
-  //printf("%f \n", step);
-  for(i = 0; i < z; i++)
+  printf("%0.30f \n", det_a);
+
+  for(i = 0; i <= x; i++)
+    printf("%f \n", x_min + x_step*i);
+
+
+  for(i = 0; i <= z; i++)
   {
-    for(j = 0; j < y; j++)
+    for(j = 0; j <= y; j++)
     {
-      for(k = 0; k < x; k++)
+      for(k = 0; k <= x; k++)
       {
         point.x = x_min + x_step*i;
         point.y = y_min + y_step*j;
         point.z = z_min + z_step*k;
 
-        grid[i*y*z+j*y+k] = point;
+        grid[i*x*y+j*x+k] = point;
       }
     }
   }
-
-  printf("%f \n", grid[0].z);
-
 
   /*for(i = 0; i < 5; i++)
   {
