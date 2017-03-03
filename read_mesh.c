@@ -237,31 +237,32 @@ double determinant(double *a, double *b, double *c, double *d)
   return determinant;
 }
 
-int inside(meshdata *m, double point_x, double point_y, double point_z)
+int inside(int numtet, int *elements, double *nodes, double point_x, double point_y, double point_z)
 {
   int i, j;
   double a_vector[3], b_vector[3], c_vector[3], d_vector[3];
   int a, b, c, d;
   double point_vector[3];
   double det_0, det_1, det_2, det_3, det_4;
+  int outside = 0;
 
   point_vector[0] = point_x;
   point_vector[1] = point_y;
   point_vector[2] = point_z;
 
-  for(i = 0; i < m->numtet; i++)
+  for(i = 0; i < numtet; i++)
   {
-    a = m->elements[i*4];
-    b = m->elements[i*4+1];
-    c = m->elements[i*4+2];
-    d = m->elements[i*4+3];
+    a = elements[i*4];
+    b = elements[i*4+1];
+    c = elements[i*4+2];
+    d = elements[i*4+3];
 
     for(j = 0; j < 3; j++)
     {
-      a_vector[j] = m->nodes[a*3+j];
-      b_vector[j] = m->nodes[b*3+j];
-      c_vector[j] = m->nodes[c*3+j];
-      d_vector[j] = m->nodes[d*3+j];
+      a_vector[j] = nodes[a*3+j];
+      b_vector[j] = nodes[b*3+j];
+      c_vector[j] = nodes[c*3+j];
+      d_vector[j] = nodes[d*3+j];
     }
 
     det_0 = determinant(a_vector, b_vector, c_vector, d_vector);
@@ -270,10 +271,18 @@ int inside(meshdata *m, double point_x, double point_y, double point_z)
     det_3 = determinant(a_vector, b_vector, point_vector, d_vector);
     det_4 = determinant(a_vector, b_vector, c_vector, point_vector);
 
-    if((det_0 == (det_1+det_2+det_3+det_4)) || (det_1==0 && det_2==0 && det_3==0 && det_4==0))
+    if((det_0 == det_1+det_2+det_3+det_4) && ((det_0 > 0) && (det_1 > 0) && (det_2 > 0) && (det_3 > 0) && (det_4 > 0)))
+    {
+      //printf("det_0: %f=%f \t det_1: %f, det_2: %f det_3: %f, det_4: %f\n", det_0, det_1+det_2+det_3+det_4, det_1, det_2, det_3, det_4);
       return 1;
-    else
-      return 0;
+    }
+
+    //if((det_0 == det_1+det_2+det_3+det_4) && (det_0 < 0 && det_1 < 0 && det_2 < 0 && det_3 < 0 && det_4 < 0))
+    if((det_0 < 0 && det_1 < 0 && det_2 < 0 && det_3 < 0 && det_4 < 0))
+    {
+      //printf("det_0: %f=%f \t det_1: %f, det_2: %f det_3: %f, det_4: %f\n", det_0, det_1+det_2+det_3+det_4, det_1, det_2, det_3, det_4);
+      return 1;
+    }
   }
 
   return 0;
@@ -281,7 +290,7 @@ int inside(meshdata *m, double point_x, double point_y, double point_z)
 
 int main(int argc, char *argv[])
 {
-  int i, j, k;
+  int i, j, k, l, mn, ii, jj, kk;
   meshdata m;
   double x_max;
   double x_min;
@@ -292,28 +301,35 @@ int main(int argc, char *argv[])
   double ***u_old, ***u_new;
   double det_0, det_1, det_2, det_3, det_4;
   const double constant = 1.0;
-  int x = 100;
-  int y = 100;
-  int z = 100;
+  int x = 5;
+  int y = 5;
+  int z = 5;
   int is_inside;
   double x_step, y_step, z_step;
   double det_a;
   double *grid_x, *grid_y, *grid_z;
+  double ***tensor_x, ***tensor_y, ***tensor_z;
   grid_x = (double*)calloc(x+2, sizeof(double));
   grid_y = (double*)calloc(y+2, sizeof(double));
   grid_z = (double*)calloc(z+2, sizeof(double));
   u_new = dallocate_3d(x+2, y+2, z+2);
   u_old = dallocate_3d(x+2, y+2, z+2);
+  tensor_x = dallocate_3d(x+2, y+2, z+2);
+  tensor_y = dallocate_3d(x+2, y+2, z+2);
+  tensor_z = dallocate_3d(x+2, y+2, z+2);
   dinit_3d(u_new, x+2, y+2, z+2);
   dinit_3d(u_old, x+2, y+2, z+2);
+  dinit_3d(tensor_x, x+2, y+2, z+2);
+  dinit_3d(tensor_y, x+2, y+2, z+2);
+  dinit_3d(tensor_z, x+2, y+2, z+2);
 
   cube *grid, point;
   //grid = calloc(x*y*z, sizeof(*grid));
 
-  double a[3] = {3, 3, 3};
+  /*double a[3] = {3, 3, 3};
   double b[3] = {0, 1, 0};
   double c[3] = {0, 0, 1};
-  double d[3] = {0, 0, 0};
+  double d[3] = {0, 0, 0};*/
 
   /*det_a = (a[0]*b[1]*c[2]*constant) + (a[0]*b[2]*constant*d[1]) + (a[0]*constant*c[1]*d[2])
         + (a[1]*b[0]*constant*d[2]) + (a[1]*b[2]*c[0]*constant) + (a[1]*constant*c[2]*d[0])
@@ -329,12 +345,22 @@ int main(int argc, char *argv[])
   readmesh("mesh_new/3Dheart.1", &m);
   compute_minmax(&x_max, &x_min, &y_max, &y_min, &z_max, &z_min, &m);
 
+  /*x_max = 100.0;
+  x_min = 90.0;
+  y_max = 100.0;
+  y_min = 90.0;
+  z_max = 100.0;
+  z_min = 90.0;*/
+
+  //x_max = 4.0;
+  //x_min = 0.0;
+
   x_step = (x_max - x_min)/(double)x;
   y_step = (y_max - y_min)/(double)y;
   z_step = (z_max - z_min)/(double)z;
 
   printf("x_max: %f \t x_min: %f \t y_max: %f \t y_min: %f \t z_max: %f \t z_min: %f\n", x_max, x_min, y_max, y_min, z_max, z_min);
-  printf("%0.30f \n", det_a);
+  //printf("%0.30f \n", det_a);
 
   //for(i = 0; i <= x; i++)
     //printf("%f \n", x_min + x_step*i);
@@ -351,47 +377,87 @@ int main(int argc, char *argv[])
         point.z = z_min + z_step*i;
 
         grid[i*x*y+j*x+k] = point;
-        /*grid_x[i] = x_min + x_step*i;
+        grid_x[i] = x_min + x_step*i;
         grid_y[i] = y_min + y_step*i;
-        grid_z[i] = z_min + z_step*i;*/
-      /*}
+        grid_z[i] = z_min + z_step*i;
+      }
     }
   }*/
 
-  for(i = 0; i <= z; i++)
+  for(i = 0; i <= x; i++)
   {
     grid_x[i] = x_min + x_step*i;
+  }
+
+  for(i = 0; i <= y; i++)
+  {
     grid_y[i] = y_min + y_step*i;
+  }
+
+  for(i = 0; i <= z; i++)
+  {
     grid_z[i] = z_min + z_step*i;
   }
 
   int count_inside = 0;
   int count_outside = 0;
 
+  ii = 1;
   for(i = 0; i <= z; i++)
   {
+    jj = 1;
     for(j = 0; j <= y; j++)
     {
+      kk = 1;
       for(k = 0; k <= x; k++)
       {
         //is_inside = inside(&m, grid[i*x*y+j*x+k].x, grid[i*x*y+j*x+k].y, grid[i*x*y+j*x+k].z);
-        is_inside = inside(&m, grid_x[k], grid_y[j], grid_z[i]);
+        is_inside = inside(m.numtet, m.elements, m.nodes, grid_x[k], grid_y[j], grid_z[i]);
 
         if(is_inside == 1)
         {
-          u_old[i][j][k] = 1;
+          u_old[ii][jj][kk] = 1;
+          //printf("%f \n", grid_x[k]);
           count_inside++;
         }
         else
         {
-          u_old[i][j][k] = 0;
+          u_old[ii][jj][kk] = 0;
           count_outside++;
         }
+        //printf("%d %d \n", k, kk);
+        kk++;
+      }
+      jj++;
+    }
+    ii++;
+  }
+
+  for(i = 1; i <= z-1; i++)
+  {
+    for(j = 1; j <= y-1; j++)
+    {
+      for(k = 1; k <= x-1; k++)
+      {
+
+          if((u_old[i-1][j][k] != 0 && u_old[i+1][j][k] != 0) && (u_old[i][j-1][k] != 0 && u_old[i][j+1][k] != 0) && (u_old[i][j][k-1] != 0 && u_old[i][j][k+1] != 0))
+          {
+            tensor_x[i][j][k] = 1.0;
+            tensor_y[i][j][k] = 1.0;
+            tensor_z[i][j][k] = 1.0;
+          }
+          else
+          {
+            tensor_x[i][j][k] = 0.0;
+            tensor_y[i][j][k] = 0.0;
+            tensor_z[i][j][k] = 0.0;
+          }
       }
     }
   }
 
-  printf("total inside points: %d, total outside points: %d , num iters: %d\n", count_inside, count_outside, x*y*z);
+
+  printf("total inside points: %d, total outside points: %d , num iters: %d\n", count_inside, count_outside, (x+1)*(y+1)*(z+1));
 
   /*for(i = 0; i < 5; i++)
   {
