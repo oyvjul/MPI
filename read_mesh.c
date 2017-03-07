@@ -79,6 +79,7 @@ void readmesh(char* infile, meshdata *M)
     FILE *fpdata;
     int dump;
     double in;
+    int i, j;
 
     int err;
 
@@ -93,12 +94,12 @@ void readmesh(char* infile, meshdata *M)
     }
     err = fscanf(fpdata, "%d", &M->numnodes);
     M->nodes = (double*)calloc(3*M->numnodes,sizeof(double));
-    for(int j=0;j<3;++j)
+    for(j=0;j<3;++j)
         err = fscanf(fpdata, "%d", &dump);
-    for (int i = 0; i < M->numnodes; i++)
+    for (i = 0; i < M->numnodes; i++)
     {
         err = fscanf(fpdata, "%d", &dump);
-        for(int j=0;j<3;++j)
+        for(j=0;j<3;++j)
         {
             err = fscanf(fpdata, "%lf", &in);
             M->nodes[i*3+j]=in;///10+0.5;  //Scaling the mesh can be done here
@@ -117,12 +118,12 @@ void readmesh(char* infile, meshdata *M)
     }
     err = fscanf(fpdata, "%d", &M->numtet);
     M->elements = (int*)calloc(4*M->numtet,sizeof(int));
-    for(int j=0;j<2;++j)
+    for(j=0;j<2;++j)
         err = fscanf(fpdata, "%d", &dump);
-    for (int i = 0; i < M->numtet; i++)
+    for (i = 0; i < M->numtet; i++)
     {
         err = fscanf(fpdata, "%d", &dump);
-        for(int j=0;j<4;++j)
+        for(j=0;j<4;++j)
             err = fscanf(fpdata, "%d", &M->elements[i*4+j]);
     }
     fclose(fpdata);
@@ -139,12 +140,12 @@ void readmesh(char* infile, meshdata *M)
     err = fscanf(fpdata, "%d", &dump);
     assert(dump==M->numtet);
     M->neighbours = (int*)calloc(4*M->numtet,sizeof(int));
-    for(int j=0;j<1;++j)
+    for(j=0;j<1;++j)
         err = fscanf(fpdata, "%d", &dump);
-    for (int i = 0; i < M->numtet; i++)
+    for (i = 0; i < M->numtet; i++)
     {
         err = fscanf(fpdata, "%d", &dump);
-        for(int j=0;j<4;++j)
+        for(j=0;j<4;++j)
             err = fscanf(fpdata, "%d", &M->neighbours[i*4+j]);
     }
     fclose(fpdata);
@@ -271,7 +272,7 @@ int inside(int numtet, int *elements, double *nodes, double point_x, double poin
     det_3 = determinant(a_vector, b_vector, point_vector, d_vector);
     det_4 = determinant(a_vector, b_vector, c_vector, point_vector);
 
-    if((det_0 == det_1+det_2+det_3+det_4) && ((det_0 > 0) && (det_1 > 0) && (det_2 > 0) && (det_3 > 0) && (det_4 > 0)))
+    /*if((det_0 == det_1+det_2+det_3+det_4) && ((det_0 > 0) && (det_1 > 0) && (det_2 > 0) && (det_3 > 0) && (det_4 > 0)))
     {
       //printf("det_0: %f=%f \t det_1: %f, det_2: %f det_3: %f, det_4: %f\n", det_0, det_1+det_2+det_3+det_4, det_1, det_2, det_3, det_4);
       return 1;
@@ -282,7 +283,26 @@ int inside(int numtet, int *elements, double *nodes, double point_x, double poin
     {
       //printf("det_0: %f=%f \t det_1: %f, det_2: %f det_3: %f, det_4: %f\n", det_0, det_1+det_2+det_3+det_4, det_1, det_2, det_3, det_4);
       return 1;
+    }*/
+    if(det_0 != 0)
+    {
+      if(det_0 < 0)
+      {
+        if(det_1 < 0 && det_2 < 0 && det_3 < 0 && det_4 < 0)
+        {
+          return 1;
+        }
+      }
+
+      if(det_0 > 0)
+      {
+        if(det_1 > 0 && det_2 > 0 && det_3 > 0 && det_4 > 0)
+        {
+          return 1;
+        }
+      }
     }
+
   }
 
   return 0;
@@ -301,9 +321,9 @@ int main(int argc, char *argv[])
   double ***u_old, ***u_new;
   double det_0, det_1, det_2, det_3, det_4;
   const double constant = 1.0;
-  int x = 5;
-  int y = 5;
-  int z = 5;
+  int x = 128;
+  int y = 128;
+  int z = 128;
   int is_inside;
   double x_step, y_step, z_step;
   double det_a;
@@ -312,16 +332,16 @@ int main(int argc, char *argv[])
   grid_x = (double*)calloc(x+2, sizeof(double));
   grid_y = (double*)calloc(y+2, sizeof(double));
   grid_z = (double*)calloc(z+2, sizeof(double));
-  u_new = dallocate_3d(x+2, y+2, z+2);
-  u_old = dallocate_3d(x+2, y+2, z+2);
-  tensor_x = dallocate_3d(x+2, y+2, z+2);
-  tensor_y = dallocate_3d(x+2, y+2, z+2);
-  tensor_z = dallocate_3d(x+2, y+2, z+2);
-  dinit_3d(u_new, x+2, y+2, z+2);
-  dinit_3d(u_old, x+2, y+2, z+2);
-  dinit_3d(tensor_x, x+2, y+2, z+2);
-  dinit_3d(tensor_y, x+2, y+2, z+2);
-  dinit_3d(tensor_z, x+2, y+2, z+2);
+  u_new = dallocate_3d(x+3, y+3, z+3);
+  u_old = dallocate_3d(x+3, y+3, z+3);
+  tensor_x = dallocate_3d(x+3, y+3, z+3);
+  tensor_y = dallocate_3d(x+3, y+3, z+3);
+  tensor_z = dallocate_3d(x+3, y+3, z+3);
+  dinit_3d(u_new, x+3, y+3, z+3);
+  dinit_3d(u_old, x+3, y+3, z+3);
+  dinit_3d(tensor_x, x+3, y+3, z+3);
+  dinit_3d(tensor_y, x+3, y+3, z+3);
+  dinit_3d(tensor_z, x+3, y+3, z+3);
 
   cube *grid, point;
   //grid = calloc(x*y*z, sizeof(*grid));
@@ -384,60 +404,70 @@ int main(int argc, char *argv[])
     }
   }*/
 
-  for(i = 0; i <= x; i++)
+  for(i = 1; i <= x+1; i++)
   {
-    grid_x[i] = x_min + x_step*i;
+    grid_x[i] = x_min + x_step*(i-1);
   }
 
-  for(i = 0; i <= y; i++)
+  for(i = 1; i <= y+1; i++)
   {
-    grid_y[i] = y_min + y_step*i;
+    grid_y[i] = y_min + y_step*(i-1);
   }
 
-  for(i = 0; i <= z; i++)
+  for(i = 1; i <= z+1; i++)
   {
-    grid_z[i] = z_min + z_step*i;
+    grid_z[i] = z_min + z_step*(i-1);
   }
 
   int count_inside = 0;
   int count_outside = 0;
+  double count = 1;
 
-  ii = 1;
-  for(i = 0; i <= z; i++)
+  FILE *fp = fopen ("mesh_new/128x128x128.txt","r");
+
+  /*#pragma omp parallel for shared(u_old, grid_x, grid_y, grid_z, z, y, x)
+  for(i = 1; i <= z+1; i++)
   {
-    jj = 1;
-    for(j = 0; j <= y; j++)
+    for(j = 1; j <= y+1; j++)
     {
-      kk = 1;
-      for(k = 0; k <= x; k++)
+      for(k = 1; k <= x+1; k++)
       {
         //is_inside = inside(&m, grid[i*x*y+j*x+k].x, grid[i*x*y+j*x+k].y, grid[i*x*y+j*x+k].z);
         is_inside = inside(m.numtet, m.elements, m.nodes, grid_x[k], grid_y[j], grid_z[i]);
 
         if(is_inside == 1)
         {
-          u_old[ii][jj][kk] = 1;
-          //printf("%f \n", grid_x[k]);
+          u_old[i][j][k] = 1;
           count_inside++;
         }
         else
         {
-          u_old[ii][jj][kk] = 0;
+          u_old[i][j][k] = 0;
           count_outside++;
         }
-        //printf("%d %d \n", k, kk);
-        kk++;
       }
-      jj++;
     }
-    ii++;
+  }*/
+
+  for(i = 1; i <= z+1; i++)
+  {
+    for(j = 1; j <= y+1; j++)
+    {
+      for(k = 1; k <= x+1; k++)
+      {
+        fscanf(fp,"%lf ", &u_old[i][j][k]);
+        //printf("%f ", tensor_x[i][j][k]);
+      }
+      fscanf(fp,"\n");
+    }
+    fscanf(fp,"\n");
   }
 
-  for(i = 1; i <= z-1; i++)
+  for(i = 1; i <= z+1; i++)
   {
-    for(j = 1; j <= y-1; j++)
+    for(j = 1; j <= y+1; j++)
     {
-      for(k = 1; k <= x-1; k++)
+      for(k = 1; k <= x+1; k++)
       {
 
           if((u_old[i-1][j][k] != 0 && u_old[i+1][j][k] != 0) && (u_old[i][j-1][k] != 0 && u_old[i][j+1][k] != 0) && (u_old[i][j][k-1] != 0 && u_old[i][j][k+1] != 0))
@@ -456,22 +486,49 @@ int main(int argc, char *argv[])
     }
   }
 
+  /*for(i = 1; i <= z+1; i++)
+  {
+    for(j = 1; j <= y+1; j++)
+    {
+      for(k = 1; k <= x+1; k++)
+      {
+        fprintf(fp, "%0.20f ", u_old[i][j][k]);
+      }
+      fprintf(fp, "\n");
+    }
+    fprintf(fp, "\n");
+  }*/
+  double l2_uold = 0;
+
+  for(i = 1; i <= z+1; i++)
+  {
+    for(j = 1; j <= y+1; j++)
+    {
+      for(k = 1; k <= x+1; k++)
+      {
+        l2_uold += u_old[i][j][k]*u_old[i][j][k];
+      }
+    }
+  }
+
+  double l2_tensor = 0;
+
+  for(i = 1; i <= z+1; i++)
+  {
+    for(j = 1; j <= y+1; j++)
+    {
+      for(k = 1; k <= x+1; k++)
+      {
+        l2_tensor += tensor_x[i][j][k]*tensor_y[i][j][k];
+      }
+    }
+  }
+
 
   printf("total inside points: %d, total outside points: %d , num iters: %d\n", count_inside, count_outside, (x+1)*(y+1)*(z+1));
-
-  /*for(i = 0; i < 5; i++)
-  {
-    for(j = 0; j < 5; j++)
-    {
-      for(k = 1; k < 5; k++)
-      {
-        printf("%f ", arr[i][j][k]);
-      }
-      printf("\n");
-    }
-    printf("\n");
-  }
-  printf("\n");*/
+  printf("sum check u_old: %0.12f", l2_uold);
+  printf("sum check tensor_x: %0.12f", l2_tensor);
+  //printf("\n");
 
   //calculate_centroid(&m);
 
